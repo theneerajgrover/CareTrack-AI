@@ -110,6 +110,14 @@ export default function App() {
   const [authForm, setAuthForm] = useState({ name: '', email: '', password: '' });
   const [authError, setAuthError] = useState('');
 
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('ct_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('ct_user');
+    }
+  }, [user]);
+
   // Profile
   const [profile, setProfile] = useState(() => {
     try { return JSON.parse(localStorage.getItem('ct_profile')) || {}; } catch { return {}; }
