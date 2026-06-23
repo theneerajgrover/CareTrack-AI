@@ -417,8 +417,10 @@ export default function App() {
   };
 
   const handleGuestLogin = () => {
-    const guestUser = { name: 'Guest User', email: '' };
-    setUser(guestUser); setShowAuthModal(false);
+    const guestUser = { name: 'Guest User', email: '', isGuest: true };
+    setUser(guestUser);
+    localStorage.setItem('ct_user', JSON.stringify(guestUser));
+    setShowAuthModal(false);
   };
 
   const handleLogout = () => { setUser(null); localStorage.removeItem('ct_user'); };
