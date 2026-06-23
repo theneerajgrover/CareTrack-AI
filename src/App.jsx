@@ -105,6 +105,9 @@ export default function App() {
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('ct_user')) || null; } catch { return null; }
   });
+  const [rememberMe, setRememberMe] = useState(() => {
+    try { return Boolean(localStorage.getItem('ct_user')); } catch { return true; }
+  });
   const [authMode, setAuthMode] = useState('login');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authForm, setAuthForm] = useState({ name: '', email: '', password: '' });
@@ -125,15 +128,22 @@ export default function App() {
 
   useEffect(() => {
     if (user) {
-      localStorage.setItem('ct_user', JSON.stringify(user));
+      if (rememberMe) {
+        try { localStorage.setItem('ct_user', JSON.stringify(user)); } catch {}
+      } else {
+        try { localStorage.removeItem('ct_user'); } catch {}
+      }
       if (!user.isGuest && user.email) {
         fetchUserProfile(user.email);
       }
     } else {
-      localStorage.removeItem('ct_user');
+      // Only remove stored user when Remember Me is disabled
+      if (!rememberMe) {
+        try { localStorage.removeItem('ct_user'); } catch {}
+      }
       setProfile({});
     }
-  }, [user]);
+  }, [user, rememberMe]);
 
   // Profile
   const [profile, setProfile] = useState(() => {
@@ -612,6 +622,7 @@ export default function App() {
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-secondary" style={{ padding: '6px 14px', fontSize: 13 }} onClick={() => setShowProfileModal(true)}>👤 {user.name?.split(' ')[0]}</button>
               <button className="btn btn-secondary" style={{ padding: '6px 14px', fontSize: 13 }} onClick={handleLogout}>{t.logout}</button>
+              <button className="btn btn-warning" style={{ padding: '6px 14px', fontSize: 13 }} onClick={() => { clearStoredUser(); setShowAuthModal(false); }}>{'Forget me'}</button>
             </div>
           ) : (
             <button className="btn btn-primary" style={{ padding: '8px 20px' }} onClick={() => setShowAuthModal(true)}>{t.login}</button>
@@ -656,6 +667,10 @@ export default function App() {
               <div style={{ marginBottom: 20 }}>
                 <label className="form-label" htmlFor="auth-password">{t.password}</label>
                 <input id="auth-password" className="form-input" type="password" placeholder="••••••••" value={authForm.password} onChange={e => setAuthForm({ ...authForm, password: e.target.value })} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <input id="remember-me" type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} />
+                <label htmlFor="remember-me" style={{ color: '#9ca3af', fontSize: 14 }}>Remember me</label>
               </div>
               {authError && <p style={{ color: '#ef4444', marginBottom: 12, fontSize: 14 }}>{authError}</p>}
               <button type="submit" className="btn btn-primary" style={{ width: '100%', marginBottom: 12 }}>{authMode === 'login' ? t.login : t.signup}</button>
