@@ -110,11 +110,28 @@ export default function App() {
   const [authForm, setAuthForm] = useState({ name: '', email: '', password: '' });
   const [authError, setAuthError] = useState('');
 
+  const fetchUserProfile = async (email) => {
+    if (!email) return;
+    try {
+      const res = await fetch(`/api/profile?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      if (data.success) {
+        setProfile(data.profile || {});
+      }
+    } catch {
+      // Ignore profile fetch failure and keep local profile data
+    }
+  };
+
   useEffect(() => {
     if (user) {
       localStorage.setItem('ct_user', JSON.stringify(user));
+      if (!user.isGuest && user.email) {
+        fetchUserProfile(user.email);
+      }
     } else {
       localStorage.removeItem('ct_user');
+      setProfile({});
     }
   }, [user]);
 
@@ -400,19 +417,67 @@ export default function App() {
   useEffect(() => { if (currentPage === 'dashboard') fetchAnalytics(); }, [currentPage]);
 
   // ---- AUTH ----
-  const handleAuth = (e) => {
+  const handleAuth = async (e) => {
     e.preventDefault(); setAuthError('');
     if (authMode === 'signup') {
       if (!authForm.name || !authForm.email || !authForm.password) { setAuthError('All fields are required.'); return; }
-      const newUser = { name: authForm.name, email: authForm.email };
-      localStorage.setItem('ct_user', JSON.stringify(newUser));
-      setUser(newUser); setShowAuthModal(false); setAuthForm({ name: '', email: '', password: '' });
+      try {
+        const res = await fetch('/api/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: authForm.name, email: authForm.email, password: authForm.password })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          setAuthError(data.error || 'Signup failed.');
+          return;
+        }
+        setUser(data.user);
+        setShowAuthModal(false);
+        setAuthForm({ name: '', email: '', password: '' });
+      } catch (error) {
+        setAuthError('Signup failed. Please try again.');
+      }
     } else {
       if (!authForm.email || !authForm.password) { setAuthError('Email and password are required.'); return; }
-      const storedUser = JSON.parse(localStorage.getItem('ct_user') || 'null');
-      if (storedUser && storedUser.email === authForm.email) {
-        setUser(storedUser); setShowAuthModal(false); setAuthForm({ name: '', email: '', password: '' });
-      } else { setAuthError('Account not found. Please sign up first.'); }
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: authForm.email, password: authForm.password })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          // Fallback: if user exists in localStorage (legacy local signup), allow login and try to migrate to backend
+          try { const storedUser = JSON.parse(localStorage.getItem('ct_user') || 'null');
+            if (storedUser && storedUser.email && storedUser.email.toLowerCase() === authForm.email.toLowerCase()) {
+              setUser(storedUser);
+              setShowAuthModal(false);
+              setAuthForm({ name: '', email: '', password: '' });
+              // Attempt silent migration to backend with a generated password
+              (async () => {
+                try {
+                  const migrationPassword = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+                  await fetch('/api/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: storedUser.name || 'User', email: storedUser.email, password: migrationPassword })
+                  });
+                } catch (e) { /* migration best-effort */ }
+              })();
+              return;
+            }
+          } catch (e) { /* ignore parse errors */ }
+
+          setAuthError(data.error || 'Invalid login credentials.');
+          return;
+        }
+        setUser(data.user);
+        setShowAuthModal(false);
+        setAuthForm({ name: '', email: '', password: '' });
+      } catch (error) {
+        setAuthError('Login failed. Please try again.');
+      }
     }
   };
 
@@ -426,10 +491,24 @@ export default function App() {
   const handleLogout = () => { setUser(null); localStorage.removeItem('ct_user'); };
 
   // ---- SAVE PROFILE ----
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
+    if (!user || !user.email || user.isGuest) {
+      setProfileSaved(false);
+      return;
+    }
     localStorage.setItem('ct_profile', JSON.stringify(profile));
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 3000);
+    try {
+      await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, profile })
+      });
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 3000);
+    } catch {
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 3000);
+    }
   };
 
   // ---- CONTACT ----
