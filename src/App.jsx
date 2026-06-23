@@ -488,7 +488,11 @@ export default function App() {
     setShowAuthModal(false);
   };
 
-  const handleLogout = () => { setUser(null); localStorage.removeItem('ct_user'); };
+  // Keep `ct_user` in localStorage so users who registered locally can sign back in.
+  // If you want a full sign-out that clears stored credentials, call `clearStoredUser()` instead.
+  const handleLogout = () => { setUser(null); };
+
+  const clearStoredUser = () => { setUser(null); localStorage.removeItem('ct_user'); };
 
   // ---- SAVE PROFILE ----
   const handleSaveProfile = async () => {
