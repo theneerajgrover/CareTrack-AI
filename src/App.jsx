@@ -106,7 +106,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('ct_user')) || null; } catch { return null; }
   });
   const [rememberMe, setRememberMe] = useState(() => {
-    try { return Boolean(localStorage.getItem('ct_user')); } catch { return true; }
+    try { return Boolean(localStorage.getItem('ct_user')) || true; } catch { return true; }
   });
   const [authMode, setAuthMode] = useState('login');
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -443,6 +443,7 @@ export default function App() {
           return;
         }
         setUser(data.user);
+        try { if (rememberMe) localStorage.setItem('ct_user', JSON.stringify(data.user)); } catch {}
         setShowAuthModal(false);
         setAuthForm({ name: '', email: '', password: '' });
       } catch (error) {
@@ -483,6 +484,7 @@ export default function App() {
           return;
         }
         setUser(data.user);
+        try { if (rememberMe) localStorage.setItem('ct_user', JSON.stringify(data.user)); } catch {}
         setShowAuthModal(false);
         setAuthForm({ name: '', email: '', password: '' });
       } catch (error) {
